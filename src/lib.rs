@@ -1,5 +1,7 @@
+use ammonia::Builder;
 use reqwest::Client;
 use serde_json::{json, Value};
+use std::collections::{HashMap, HashSet};
 use worker::*;
 
 #[event(fetch)]
@@ -24,17 +26,10 @@ async fn fetch(_req: HttpRequest, _env: Env, _ctx: Context) -> Result<Response> 
         .and_then(|v| v.as_str())
         .ok_or_else(|| worker::Error::RustError("content not found".to_string()))?;
 
-    let htmlText = html2text::from_read(html.as_bytes(), 80)
-        .map_err(|e| worker::Error::RustError(e.to_string()))?;
-
     println!("{}", result);
-    let respnse = send_message(
-        &bot_token.to_string(),
-        &chat_id.to_string(),
-        &htmlText.into_boxed_str(),
-    )
-    .await
-    .map_err(|e| worker::Error::RustError(e.to_string()))?;
+    let respnse = send_message(&bot_token.to_string(), &chat_id.to_string(), html)
+        .await
+        .map_err(|e| worker::Error::RustError(e.to_string()))?;
 
     Response::from_json(&respnse)
 }
@@ -91,8 +86,8 @@ pub async fn send_message(
 
     let payload = json!({
         "chat_id": chat_id,
-        "text": escape_md(html),
-          "parse_mode": "Markdown",
+        "text": sanitize_for_telegram(html),
+        "parse_mode": "HTML",
         "disable_web_page_preview": true
     });
 
@@ -105,15 +100,48 @@ pub async fn send_message(
     Ok(response)
 }
 
-fn escape_md(text: &str) -> String {
-    let special = r#">#+-=|{}.!"#;
+fn telegram_sanitizer() -> Builder<'static> {
+    let mut builder = Builder::default();
 
-    let mut out = String::new();
-    for c in text.chars() {
-        if special.contains(c) {
-            out.push('\\');
-        }
-        out.push(c);
-    }
-    out
+    let tags: HashSet<&str> = [
+        "b",
+        "strong",
+        "i",
+        "em",
+        "u",
+        "ins",
+        "s",
+        "strike",
+        "del",
+        "span",
+        "tg-spoiler",
+        "a",
+        "tg-emoji",
+        "code",
+        "pre",
+        "blockquote",
+    ]
+    .into_iter()
+    .collect();
+
+    let mut tag_attributes: HashMap<&str, HashSet<&str>> = HashMap::new();
+    tag_attributes.insert("a", ["href"].into_iter().collect());
+    tag_attributes.insert("span", ["class"].into_iter().collect());
+    tag_attributes.insert("tg-emoji", ["emoji-id"].into_iter().collect());
+    tag_attributes.insert("code", ["class"].into_iter().collect()); // language-xxx
+    tag_attributes.insert("blockquote", ["expandable"].into_iter().collect());
+    tag_attributes.insert("span", ["class"].into_iter().collect());
+
+    builder
+        .tags(tags)
+        .tag_attributes(tag_attributes)
+        .set_tag_attribute_value("span", "class", "tg-spoiler")
+        .link_rel(None) // don't inject rel="noopener" etc — Telegram doesn't want extra attrs
+        .clean_content_tags(HashSet::new());
+
+    builder
+}
+
+fn sanitize_for_telegram(input: &str) -> String {
+    telegram_sanitizer().clean(input).to_string()
 }
