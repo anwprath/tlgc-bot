@@ -1537,6 +1537,7 @@ dependencies = [
  "http",
  "regex",
  "reqwest",
+ "serde",
  "serde_json",
  "worker",
  "worker-macros",
