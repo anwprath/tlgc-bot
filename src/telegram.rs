@@ -14,18 +14,15 @@ pub async fn send_message(
 ) -> Result<Value, Box<dyn std::error::Error>> {
     let url = format!("{BASE_URL}/bot{token}/sendMessage");
 
-    let santized_html = sanitize_for_telegram(&question.content);
-    let link_suffix = format!("\n\n{}", question.link).to_string();
-    let text = format!("{}{}", santized_html, link_suffix);
+    let sanitized_html = sanitize_for_telegram(&question.content);
+    let text = format!("{sanitized_html}\n{}", question.link);
 
     let payload = json!({
         "chat_id": chat_id,
-        "text": text ,
+        "text": text,
         "parse_mode": "HTML",
         "disable_web_page_preview": true
     });
-
-    println!("{url}");
 
     httpw::post(&url, payload).await
 }
