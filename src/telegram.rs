@@ -14,18 +14,16 @@ pub async fn send_message(
 ) -> Result<Value, Box<dyn std::error::Error>> {
     let url = format!("{BASE_URL}/bot{token}/sendMessage");
 
-    let santized_html = sanitize_for_telegram(&question.content);
-    let link_suffix = format!("\n\n{}", question.link).to_string();
-    let text = format!("{}{}", santized_html, link_suffix);
+    let sanitized_html = sanitize_for_telegram(&question.content);
+    let link_suffix = format!("\n\n{}", question.link);
+    let text = format!("{sanitized_html}{link_suffix}");
 
     let payload = json!({
         "chat_id": chat_id,
-        "text": text ,
+        "text": text,
         "parse_mode": "HTML",
         "disable_web_page_preview": true
     });
-
-    println!("{url}");
 
     httpw::post(&url, payload).await
 }
@@ -65,7 +63,6 @@ fn telegram_sanitizer() -> Builder<'static> {
     tag_attributes.insert("tg-emoji", ["emoji-id"].into_iter().collect());
     tag_attributes.insert("code", ["class"].into_iter().collect()); // language-xxx
     tag_attributes.insert("blockquote", ["expandable"].into_iter().collect());
-    tag_attributes.insert("span", ["class"].into_iter().collect());
 
     builder
         .tags(tags)
