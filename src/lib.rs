@@ -23,9 +23,9 @@ async fn fetch(_req: HttpRequest, _env: Env, _ctx: Context) -> Result<Response> 
         .map_err(|e| worker::Error::RustError(e.to_string()))?
         .to_string();
 
-    let respnse = telegram::send_message(&bot_token, &chat_id, &question)
+    telegram::send_message(&bot_token, &chat_id, &question)
         .await
         .map_err(|e| worker::Error::RustError(e.to_string()))?;
 
-    Response::from_json(&respnse)
+    Response::ok("OK")
 }
