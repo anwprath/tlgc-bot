@@ -9,3 +9,7 @@ command = "cargo install -q \"worker-build@^0.8\" && worker-build --release --pa
 crons = [
   "30 3 * * *" # 9 AM IST everyday
 ]
+
+[observability.logs]
+enabled = true
+invocation_logs = true
